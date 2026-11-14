@@ -32,6 +32,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
     companion object {
         const val IMAGE_MS = 40_000L
         const val FADE_MS = 1_800L
+        const val SKIP_START_MS = 10_000
         val IMAGE_EXT = setOf("jpg", "jpeg", "png", "webp")
         val VIDEO_EXT = setOf("mp4", "mkv", "mov", "webm", "m4v")
     }
@@ -254,9 +255,19 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
             mp.setDataSource(f.absolutePath)
             mp.setSurface(s)
             mp.setVolume(0f, 0f)
-            mp.isLooping = media.size == 1
             mp.setOnVideoSizeChangedListener { _, w, h -> applyCrop(w, h) }
-            mp.setOnPreparedListener { it.start() }
+            mp.setOnPreparedListener { p ->
+                // sarim peste inceputul clipului (titluri, decolare), daca e destul de lung
+                if (p.duration > SKIP_START_MS + 15_000) {
+                    p.setOnSeekCompleteListener { sp ->
+                        sp.setOnSeekCompleteListener(null)
+                        sp.start()
+                    }
+                    p.seekTo(SKIP_START_MS.toLong(), MediaPlayer.SEEK_CLOSEST)
+                } else {
+                    p.start()
+                }
+            }
             mp.setOnInfoListener { _, what, _ ->
                 if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
                     failures = 0
