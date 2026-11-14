@@ -61,6 +61,7 @@ class MainActivity : Activity() {
         const val T_APP = 3
         const val SETTINGS_ID = "aura.settings"
         const val WALLPAPER_ID = "aura.wallpaper"
+        const val ALARM_ID = "aura.alarm"
         const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
         const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
         val DEFAULT_FAVS = listOf(
@@ -132,6 +133,7 @@ class MainActivity : Activity() {
         filter.addDataScheme("package")
         ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
+        AlarmScheduler.schedule(this)
         loadApps()
     }
 
@@ -229,6 +231,9 @@ class MainActivity : Activity() {
         map[WALLPAPER_ID] = AppEntry(
             WALLPAPER_ID, "Fundal", Intent(), getDrawable(android.R.drawable.ic_menu_gallery), false, true
         )
+        map[ALARM_ID] = AppEntry(
+            ALARM_ID, "Alarmă", Intent(), getDrawable(android.R.drawable.ic_lock_idle_alarm), false, true
+        )
         return map.values.toList()
     }
 
@@ -301,9 +306,46 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun showAlarmDialog() {
+        val times = intArrayOf(360, 390, 420, 450, 480, 540)
+        val names = ArrayList<String>()
+        names.add("Oprită")
+        for (t in times) names.add(String.format("Zilnic la %02d:%02d", t / 60, t % 60))
+        names.add("Probă: sună peste 1 minut")
+        val now = if (AlarmScheduler.isOn(this)) {
+            val m = AlarmScheduler.minutes(this)
+            String.format("Alarmă: zilnic la %02d:%02d", m / 60, m % 60)
+        } else {
+            "Alarmă: oprită"
+        }
+        AlarmDialogHelper.show(this, now, names.toTypedArray()) { which ->
+            when {
+                which == 0 -> {
+                    AlarmScheduler.set(this, false, AlarmScheduler.minutes(this))
+                    Toast.makeText(this, "Alarma este oprită", Toast.LENGTH_SHORT).show()
+                }
+                which <= times.size -> {
+                    val t = times[which - 1]
+                    AlarmScheduler.set(this, true, t)
+                    Toast.makeText(
+                        this, String.format("Alarma sună zilnic la %02d:%02d", t / 60, t % 60), Toast.LENGTH_SHORT
+                    ).show()
+                }
+                else -> {
+                    AlarmScheduler.scheduleTest(this, 60_000L)
+                    Toast.makeText(this, "Proba sună peste 1 minut", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     private fun launch(app: AppEntry, from: View) {
         if (app.pkg == WALLPAPER_ID) {
             showWallpaperDialog()
+            return
+        }
+        if (app.pkg == ALARM_ID) {
+            showAlarmDialog()
             return
         }
         try {
