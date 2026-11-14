@@ -32,8 +32,8 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
     companion object {
         const val IMAGE_MS = 40_000L
         const val FADE_MS = 1_800L
-        const val SKIP_START_MS = 10_000
-        const val SKIP_END_MS = 10_000
+        const val SKIP_START_MS = 0
+        const val SKIP_END_MS = 0
         val IMAGE_EXT = setOf("jpg", "jpeg", "png", "webp")
         val VIDEO_EXT = setOf("mp4", "mkv", "mov", "webm", "m4v")
     }
@@ -264,7 +264,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
                 // sarim peste inceputul clipului (titluri, decolare), daca e destul de lung
                 // si oprim clipul cu 10 secunde inainte de final
                 val d = p.duration
-                if (d > SKIP_START_MS + SKIP_END_MS + 15_000) {
+                if (SKIP_START_MS + SKIP_END_MS > 0 && d > SKIP_START_MS + SKIP_END_MS + 15_000) {
                     p.setOnSeekCompleteListener { sp ->
                         sp.setOnSeekCompleteListener(null)
                         sp.start()
