@@ -33,6 +33,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
         const val IMAGE_MS = 40_000L
         const val FADE_MS = 1_800L
         const val SKIP_START_MS = 10_000
+        const val SKIP_END_MS = 10_000
         val IMAGE_EXT = setOf("jpg", "jpeg", "png", "webp")
         val VIDEO_EXT = setOf("mp4", "mkv", "mov", "webm", "m4v")
     }
@@ -55,6 +56,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
     private var pendingVideo: File? = null
     private val handler = Handler(Looper.getMainLooper())
     private val nextRunnable = Runnable { showNext() }
+    private val videoEndRunnable = Runnable { showNext() }
 
     init {
         val lp = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
@@ -145,6 +147,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
 
     private fun showNext() {
         handler.removeCallbacks(nextRunnable)
+        handler.removeCallbacks(videoEndRunnable)
         if (!active || media.isEmpty()) return
         index = (index + 1) % media.size
         val f = media[index]
@@ -220,6 +223,7 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
     // ---------- video ----------
 
     private fun releasePlayer() {
+        handler.removeCallbacks(videoEndRunnable)
         val p = player ?: return
         player = null
         try {
@@ -258,12 +262,16 @@ class BackgroundView(context: Context) : FrameLayout(context), TextureView.Surfa
             mp.setOnVideoSizeChangedListener { _, w, h -> applyCrop(w, h) }
             mp.setOnPreparedListener { p ->
                 // sarim peste inceputul clipului (titluri, decolare), daca e destul de lung
-                if (p.duration > SKIP_START_MS + 15_000) {
+                // si oprim clipul cu 10 secunde inainte de final
+                val d = p.duration
+                if (d > SKIP_START_MS + SKIP_END_MS + 15_000) {
                     p.setOnSeekCompleteListener { sp ->
                         sp.setOnSeekCompleteListener(null)
                         sp.start()
                     }
                     p.seekTo(SKIP_START_MS.toLong(), MediaPlayer.SEEK_CLOSEST)
+                    handler.removeCallbacks(videoEndRunnable)
+                    handler.postDelayed(videoEndRunnable, (d - SKIP_START_MS - SKIP_END_MS).toLong())
                 } else {
                     p.start()
                 }
