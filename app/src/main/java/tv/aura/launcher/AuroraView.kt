@@ -16,7 +16,14 @@ import kotlin.math.sin
 /** Fundal animat: pete mari de culoare care se misca lent (efect "aurora"). */
 class AuroraView(context: Context) : View(context) {
 
-    private class Blob(val color: Int, val radius: Float, val sx: Float, val sy: Float, val phase: Float)
+    private class Blob(var color: Int, val radius: Float, val sx: Float, val sy: Float, val phase: Float)
+
+    private val palettes = mapOf(
+        "aurora" to intArrayOf(Color.rgb(72, 40, 170), Color.rgb(14, 100, 180), Color.rgb(150, 36, 100), Color.rgb(16, 130, 112)),
+        "apus" to intArrayOf(Color.rgb(205, 85, 30), Color.rgb(150, 30, 75), Color.rgb(225, 140, 40), Color.rgb(70, 20, 95)),
+        "ocean" to intArrayOf(Color.rgb(10, 75, 160), Color.rgb(0, 135, 150), Color.rgb(20, 40, 115), Color.rgb(0, 95, 95)),
+        "noapte" to intArrayOf(Color.rgb(24, 28, 70), Color.rgb(46, 34, 90), Color.rgb(12, 44, 76), Color.rgb(34, 34, 48))
+    )
 
     private val blobs = listOf(
         Blob(Color.rgb(72, 40, 170), 0.75f, 0.110f, 0.070f, 0.0f),
@@ -36,9 +43,15 @@ class AuroraView(context: Context) : View(context) {
             if (value) invalidate()
         }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        if (w <= 0 || h <= 0) return
+    fun setPalette(name: String) {
+        val colors = palettes[name] ?: palettes.getValue("aurora")
+        for (i in blobs.indices) blobs[i].color = colors[i]
+        buildShaders(width)
+        invalidate()
+    }
+
+    private fun buildShaders(w: Int) {
+        if (w <= 0) return
         shaders = blobs.map {
             RadialGradient(
                 0f, 0f, it.radius * w,
@@ -46,6 +59,12 @@ class AuroraView(context: Context) : View(context) {
                 Shader.TileMode.CLAMP
             )
         }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w <= 0 || h <= 0) return
+        buildShaders(w)
         scrim.shader = LinearGradient(
             0f, 0f, 0f, h.toFloat(),
             Color.argb(40, 0, 0, 0), Color.argb(150, 0, 0, 0),

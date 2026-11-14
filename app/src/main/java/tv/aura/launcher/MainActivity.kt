@@ -60,6 +60,7 @@ class MainActivity : Activity() {
         const val T_FAV = 2
         const val T_APP = 3
         const val SETTINGS_ID = "aura.settings"
+        const val WALLPAPER_ID = "aura.wallpaper"
         const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
         const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
         val DEFAULT_FAVS = listOf(
@@ -75,7 +76,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var rv: RecyclerView
-    private lateinit var aurora: AuroraView
+    private lateinit var bg: BackgroundView
     private val adapter = AppsAdapter()
     private var apps: List<AppEntry> = emptyList()
     private var items: List<Item> = emptyList()
@@ -101,8 +102,8 @@ class MainActivity : Activity() {
         cardH = cardW * 9 / 16
 
         val root = FrameLayout(this)
-        aurora = AuroraView(this)
-        root.addView(aurora, FrameLayout.LayoutParams(MATCH, MATCH))
+        bg = BackgroundView(this)
+        root.addView(bg, FrameLayout.LayoutParams(MATCH, MATCH))
 
         rv = RecyclerView(this)
         rv.clipChildren = false
@@ -141,11 +142,12 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        aurora.running = true
+        bg.reload(wallpaperDir(), prefs.getString("bg", "auto") ?: "auto")
+        bg.start()
     }
 
     override fun onStop() {
-        aurora.running = false
+        bg.stop()
         super.onStop()
     }
 
@@ -224,6 +226,9 @@ class MainActivity : Activity() {
             null
         }
         map[SETTINGS_ID] = AppEntry(SETTINGS_ID, "Setări", settingsIntent, settingsIcon, false, true)
+        map[WALLPAPER_ID] = AppEntry(
+            WALLPAPER_ID, "Fundal", Intent(), getDrawable(android.R.drawable.ic_menu_gallery), false, true
+        )
         return map.values.toList()
     }
 
@@ -273,7 +278,34 @@ class MainActivity : Activity() {
 
     // ---------- actions ----------
 
+    private fun wallpaperDir(): java.io.File? = getExternalFilesDir("wallpapers")
+
+    private fun showWallpaperDialog() {
+        val names = arrayOf("Automat (pozele și video-urile mele)", "Aurora", "Apus", "Ocean", "Noapte")
+        val modes = arrayOf("auto", "aurora", "apus", "ocean", "noapte")
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Fundal")
+            .setItems(names) { _, which ->
+                val mode = modes[which]
+                prefs.edit().putString("bg", mode).apply()
+                bg.reload(wallpaperDir(), mode)
+                bg.start()
+                if (mode == "auto" && !bg.hasMedia()) {
+                    Toast.makeText(
+                        this,
+                        "Nu am găsit poze sau video. Pune-le în: " + wallpaperDir()?.absolutePath,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            .show()
+    }
+
     private fun launch(app: AppEntry, from: View) {
+        if (app.pkg == WALLPAPER_ID) {
+            showWallpaperDialog()
+            return
+        }
         try {
             val opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.width, from.height)
             startActivity(app.intent, opts.toBundle())
